@@ -1,8 +1,8 @@
-name: Main Branch Workflow
+name: Commit Workflow
 
 on:
   push:
-    branches: [main]
+    branches: [feature-123]
 
 jobs:
   build:
@@ -25,27 +25,38 @@ jobs:
         name: verademo.war
         path: target/verademo.war
 
-  policy-scan:
-    runs-on: ubuntu-latest
+  veracode-pipeline-scan:
     needs: build
+    runs-on: ubuntu-latest
+    container: 
+      image: veracode/pipeline-scan:latest
+      options: --user root
     steps:
-      - uses: actions/checkout@v2
       - name: get archive
         uses: actions/download-artifact@v2
         with:
           name: verademo.war
-          path: .
-      - name: Veracode Upload and Scan Action Step
-        uses: veracode/veracode-uploadandscan-action@master
-        id: upload_and_scan
+          path: /tmp
+      - name: pipeline-scan
+        run: | 
+          java -jar /opt/veracode/pipeline-scan.jar \
+            -vid "${{secrets.VERACODE_API_ID}}" \
+            -vkey "${{secrets.VERACODE_API_KEY}}" \
+            --fail_on_severity="Very High, High" \
+            --file /tmp/verademo.war \
+            -jf results.json \
+            -fjf filtered_results.json 
+        continue-on-error: true
+      - name: save standard results
+        uses: actions/upload-artifact@v1
         with:
-          appname: 'Verademo GitHub Training'
-          createprofile: true
-          version: '${{ github.run_id }}'
-          filepath: 'verademo.war'
-          vid: '${{ secrets.VERACODE_API_ID }}'
-          vkey: '${{ secrets.VERACODE_API_KEY }}'
-          scantimeout: 15
+          name: PipelineScanResults
+          path: results.json
+      - name: save filtered results
+        uses: actions/upload-artifact@v1
+        with:
+          name: filtered-results
+          path: filtered_results.json
 
   veracode-sca-task:
     runs-on: ubuntu-latest
