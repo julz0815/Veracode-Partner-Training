@@ -32,6 +32,7 @@ jobs:
       image: veracode/pipeline-scan:latest
       options: --user root
     steps:
+      - uses: actions/checkout@v2
       - name: get archive
         uses: actions/download-artifact@v2
         with:
@@ -44,6 +45,7 @@ jobs:
             -vkey "${{secrets.VERACODE_API_KEY}}" \
             --fail_on_severity="Very High, High" \
             --file /tmp/verademo.war \
+            -bf results.json \
             -jf results.json \
             -fjf filtered_results.json 
         continue-on-error: true
