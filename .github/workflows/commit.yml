@@ -2,7 +2,7 @@ name: Commit Workflow
 
 on:
   push:
-    branches: [feature-123]
+    branches: [Feature-123]
 #test
 jobs:
   build:
