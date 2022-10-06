@@ -25,65 +25,57 @@ jobs:
         name: verademo.war
         path: target/verademo.war
 
-  veracode-pipeline-scan:
+  pipeline_scan:
+    # needs the build step before this job will start running
     needs: build
     runs-on: ubuntu-latest
-    container: 
-      image: veracode/pipeline-scan:latest
-      options: --user root
+    name: pipeline scan
+
     steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+      
+      # get the compiled binary from a previous job
       - name: get archive
         uses: actions/download-artifact@v2
         with:
           name: verademo.war
-          path: /tmp
-      - name: pipeline-scan
-        run: | 
-          java -jar /opt/veracode/pipeline-scan.jar \
-            -vid "${{secrets.VERACODE_API_ID}}" \
-            -vkey "${{secrets.VERACODE_API_KEY}}" \
-            --fail_on_severity="Very High, High" \
-            --file /tmp/verademo.war \
-            -jf results.json \
-            -fjf filtered_results.json 
-        continue-on-error: true
-      - name: save standard results
-        uses: actions/upload-artifact@v1
-        with:
-          name: PipelineScanResults
-          path: results.json
-      - name: save filtered results
-        uses: actions/upload-artifact@v1
-        with:
-          name: filtered-results
-          path: filtered_results.json
 
-  import-issues:
-    needs: veracode-pipeline-scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: get scan results
-        uses: actions/download-artifact@v2
+      # run the pipeline scan action
+      - name: pipeline-scan action step
+        id: pipeline-scan
+        uses: veracode/Veracode-pipeline-scan-action@pipeline-scan-beta-v0.0.3
         with:
-          name: filtered-results
+          vid: ${{ secrets.VID }}
+          vkey: ${{ secrets.VKEY }}
+          file: "verademo.war" 
 
-      - name: import flaws as issues
-        uses: veracode/veracode-flaws-to-issues@v1
-        with:
-          scan-results-json: 'filtered_results.json'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #import-issues:
+    #needs: veracode-pipeline-scan
+    #runs-on: ubuntu-latest
+    #steps:
+      #- name: get scan results
+        #uses: actions/download-artifact@v2
+        #with:
+          #name: filtered-results
 
-  veracode-sca-task:
-    runs-on: ubuntu-latest
-    name: Scan repository for Issues
+      #- name: import flaws as issues
+        #uses: veracode/veracode-flaws-to-issues@v1
+        #with:
+          #scan-results-json: 'filtered_results.json'
+          #github-token: ${{ secrets.GITHUB_TOKEN }}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Run Veracode SCA
-        env:
-          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
-        uses: veracode/veracode-sca@v1.09
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          create-issues: true
+  #veracode-sca-task:
+    #runs-on: ubuntu-latest
+    #name: Scan repository for Issues
+
+    #steps:
+      #- name: Checkout
+        #uses: actions/checkout@v3
+      #- name: Run Veracode SCA
+        #env:
+          #SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+        #uses: veracode/veracode-sca@v1.09
+        #with:
+          #github_token: ${{ secrets.GITHUB_TOKEN }}
+          #create-issues: true
